@@ -79,34 +79,54 @@ void StudentWorld::loadLevel(string lvl) {
                 switch (item) {
                     case Level::floor: {
                         // cout << "(" << x << "," << y <<  "): " << "is a Floor\n";
-                        Floor* m_floor = new Floor(this, x, y);
+                        Floor* m_floor = new Floor(x, y);
                         m_actors.push_back(m_floor);
                         break;
                     }
-                    // case Level::ladder:
-                    //     cout << "(" << x << "," << y << "): " << "is a Ladder\n";
-                    //     break;
-                    // case Level::left_kong:
-                    //     cout << "(" << x << "," << y << "): " << "is a left-facing Kong\n";
-                    //     break;
-                    // case Level::right_kong:
-                    //     cout << "(" << x << "," << y << "): " << "is a right-facing Kong\n";
-                    //     break;
-                    // case Level::fireball:
-                    //     cout << "(" << x << "," << y << "): " << "is a Fireball\n";
-                    //     break;
-                    // case Level::koopa:
-                    //     cout << "(" << x << "," << y << "): " << "is a Koopa\n";
-                    //     break;
-                    // case Level::bonfire:
-                    //     cout << "(" << x << "," << y << "): " << "is a Bonfire\n";
-                    //     break;
-                    // case Level::extra_life:
-                    //     cout << "(" << x << "," << y << "): " << "is a Extra Life Goodie\n";
-                    //     break;
-                    // case Level::garlic:
-                    //     cout << "(" << x << "," << y << "): " << "is a Garlic Goodie\n";
-                    //     break;
+                    case Level::ladder: {
+                        // cout << "(" << x << "," << y << "): " << "is a Ladder\n";
+                        Ladder* m_ladder = new Ladder(x, y);
+                        m_actors.push_back(m_ladder);
+                        break;
+                    }
+                    case Level::left_kong: {
+                        Kong * m_kong = new Kong(this, x, y, GraphObject::right);
+                        m_actors.push_back(m_kong);
+                        break;
+                    }
+                    case Level::right_kong: {
+                        Kong * m_kong = new Kong(this, x, y, GraphObject::left);
+                        m_actors.push_back(m_kong);
+                        break;
+                    }
+                    case Level::fireball: {
+                        Fireball * m_fireball = new Fireball(this, x, y);
+                        m_actors.push_back(m_fireball);
+                        break;
+                    }
+                    case Level::koopa: {
+                        Koopa * m_koopa = new Koopa(this, x, y);
+                        m_actors.push_back(m_koopa);
+                        break;
+                    }
+                    case Level::bonfire: {
+                        Bonfire * m_bonfire = new Bonfire(this, x, y);
+                        m_actors.push_back(m_bonfire);
+                        break;
+                    }
+                        
+                    case Level::extra_life: {
+                        // xcout << "(" << x << "," << y << "): " << "is a Extra Life Goodie\n";
+                        ExtraLifeGoodie * m_extra_life = new ExtraLifeGoodie(this, x, y);
+                        m_actors.push_back(m_extra_life);
+                        break;
+                    }
+                    case Level::garlic: {
+                        // cout << "(" << x << "," << y << "): " << "is a Garlic Goodie\n";
+                        GarlicGoodie * m_garlic = new GarlicGoodie(this, x, y);
+                        m_actors.push_back(m_garlic);
+                        break;
+                    }
                     case Level::player: {
                         m_player = new Player(this, x, y);
                         break;
@@ -120,15 +140,24 @@ void StudentWorld::loadLevel(string lvl) {
     }
 }
 
-Actor* StudentWorld::getPtr(int x, int y) {
+Actor* StudentWorld::getPtr(int x, int y, Actor* dont_return_me) {
     // what if there are multiple things on the same tile?
     for (int i = 0; i < m_actors.size(); i++) {
+        if (m_actors[i] != nullptr && m_actors[i] == dont_return_me) {
+            break;
+        }
         if (m_actors[i]->getX() == x && m_actors[i]->getY() == y) {
-
-            return m_actors[i];
+            // if (m_actors[i] != nullptr && m_actors[i] != dont_return_me) {
+                return m_actors[i];
+            // }
+            
         }
     }
     return nullptr;
+}
+
+void StudentWorld::addObject(Actor * ptr) {
+    m_actors.push_back(ptr);
 }
 
 StudentWorld::~StudentWorld() {

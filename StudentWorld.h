@@ -20,7 +20,8 @@ public:
   virtual void cleanUp();
   void setDisplayText(); // set display text to be put on screen
   StudentWorld * getThis();
-  Actor * getPtr(int x, int y);
+  Actor * getPtr(int x, int y, Actor* dont_return_me = nullptr);
+  void addObject(Actor * ptr);
   void loadLevel(string lvl);
 
 private:
