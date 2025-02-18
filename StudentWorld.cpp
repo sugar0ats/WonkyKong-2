@@ -1,7 +1,5 @@
 #include "StudentWorld.h"
 #include "Actor.h"
-#include "Player.h"
-#include "Floor.h"
 #include "GameConstants.h"
 #include <string>
 using namespace std;
@@ -14,14 +12,13 @@ GameWorld* createStudentWorld(string assetPath)
 StudentWorld::StudentWorld(string assetPath)
 : GameWorld(assetPath)
 {
+    // any data members to initialize?
 }
 
 int StudentWorld::init()
 {
+    loadLevel("level00.txt"); // loads the file and adds all dynamically allocated objects to the private vector
 
-    // m_player = new Player(this, VIEW_WIDTH / 2, VIEW_HEIGHT / 2);
-
-    loadLevel("level00.txt");
 // 1. Initialize the data structures used to keep track of your game’s level and actors.
 // 2. Load the current level’s details from the appropriate level data file.
 // 3. Allocate and insert a valid Player object into the game world.
@@ -29,31 +26,43 @@ int StudentWorld::init()
 // Fireball objects, Koopa objects, Goodie objects, or other relevant objects into the game
 // world, as required by the specification in the current level’s data file.
 
-
-    // m_player = new Actor(this, VIEW_WIDTH/2, VIEW_HEIGHT/2);
-
     return GWSTATUS_CONTINUE_GAME;
 }
 
 int StudentWorld::move()
 {
-    m_player->doSomething();
+    m_player->doSomething(); // force the m_player to do something
     for (int i = 0; i < m_actors.size(); i++) {
-        m_actors.at(i)->doSomething();
+        m_actors.at(i)->doSomething(); // force every actor to do something
+    }
+
+    for (int i = 0; i < m_actors.size(); i++) {
+        if (m_actors.at(i)->canDie()) {
+            // if (m_actors.at(i)->isDead()) {
+            //     delete m_actors.at(i);
+            //     m_actors.at(i) = nullptr;
+            // }
+        }
     }
     return GWSTATUS_CONTINUE_GAME;
 }
 
 void StudentWorld::cleanUp()
 {
-    delete m_player;
+    if (m_player != nullptr) {
+        delete m_player;
+        m_player = nullptr; // set the pointer to a nullptr so we don't try to delete it again when we call the destructor
+    }
     for (int i = 0; i < m_actors.size(); i++) {
-        delete m_actors.at(i);
+        if (m_actors.at(i) != nullptr) {
+            delete m_actors.at(i);
+            m_actors.at(i) = nullptr;
+        }
+        // remember that you can't delete a nullptr!
     }
 }
 
 void StudentWorld::loadLevel(string lvl) {
-    // string curLevel = "level02.txt";
     Level lev(assetPath());
     Level::LoadResult result = lev.loadLevel(lvl);
     if (result == Level::load_fail_file_not_found)
@@ -63,20 +72,13 @@ void StudentWorld::loadLevel(string lvl) {
     else if (result == Level::load_success)
         {
         cerr << "Successfully loaded level\n";
-        // otherwise the load was successful and you can access the
-        // contents of the level - here's an example
-        // int x = 0;
-        // int y = 5;
-        // Level::MazeEntry item = lev.getContentsOf(x, y);
-        // if (item == Level::Player)
-        //     cout << "test" << endl;
         for (int x = 0; x < VIEW_HEIGHT; x++) {
             for (int y = 0; y < VIEW_WIDTH; y++) {
                 Level::MazeEntry item = lev.getContentsOf(x, y);
 
                 switch (item) {
                     case Level::floor: {
-                        cout << "(" << x << "," << y <<  "): " << "is a Floor\n";
+                        // cout << "(" << x << "," << y <<  "): " << "is a Floor\n";
                         Floor* m_floor = new Floor(this, x, y);
                         m_actors.push_back(m_floor);
                         break;
@@ -107,11 +109,9 @@ void StudentWorld::loadLevel(string lvl) {
                     //     break;
                     case Level::player: {
                         m_player = new Player(this, x, y);
-                        cout << "(" << x << "," << y << "): " << "is a Player starts\n";
                         break;
                     }
                     case Level::empty: {
-                        cout << "(" << x << "," << y << "): " << "is a empty\n";
                         break;
                     }
                 }
