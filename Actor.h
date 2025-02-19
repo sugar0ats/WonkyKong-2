@@ -16,7 +16,11 @@ class Actor : public GraphObject
     virtual bool isObstruction() const; // floor
     virtual bool isDestructive() const; // bonfires
     virtual bool isGoodie() const; // goodie
-    StudentWorld* getWorld();
+    virtual bool isDead() const;
+    virtual bool isAnimated() const {return false;};
+    virtual bool attack() {return false;}
+    virtual bool canRoll() {return false;}
+    StudentWorld* getWorld() const;
 
   private:
     StudentWorld* m_world;
@@ -32,6 +36,23 @@ class Floor : public Actor {
       
 };
 
+// class Animated : public Actor {
+//   public:
+//     Animated(int frames_per_cycle);
+//   private:
+//     virtual bool isAnimated() const {return true;};
+//     void updateAnimation();
+// };
+
+class Attacker : public Actor {
+  public:
+    Attacker(StudentWorld* sw, int id, int x, int y);
+    virtual bool attack();
+    virtual void specialization_attack(Actor * other);
+    virtual bool special_conditions(Actor * ptr);
+  private:
+};
+
 class Ladder : public Actor {
   public:
     Ladder(int x, int y);
@@ -40,19 +61,22 @@ class Ladder : public Actor {
    
 };
 
-class Bonfire : public Actor {
+class Bonfire : public Attacker {
   public:
     Bonfire(StudentWorld * sw, int x, int y);
     virtual bool isDestructive() const; // override this
+    virtual void doSomething();
+    virtual bool special_conditions(Actor * ptr);
   private:
     
 };
 
-class Mortal : public Actor {
+class Mortal : public Attacker {
   public:
     Mortal(StudentWorld * sw, int id, int x, int y);
     virtual bool canDie() const;
     virtual bool isDead() const;
+    virtual void setDead(bool dead);
     virtual bool canMove() const;
   private:
     bool m_alive;
@@ -93,7 +117,8 @@ class MovingMortal : public Mortal {
 
 class Burp : public MovingMortal {
   public:
-    Burp(StudentWorld * sw, int x, int y);
+    Burp(StudentWorld * sw, int x, int y, int dir);
+    virtual void doSomething();
   private:
     int m_lifetime;
 
@@ -104,6 +129,8 @@ class Player : public MovingMortal {
       Player(StudentWorld* sw, int x, int y);
       virtual void doSomething();
       void setFreezeCount(int count);
+      virtual void getAttacked();
+      // virtual bool isDead() const;
       // bool canMoveThere(int x, int y);
   private: 
       // bool m_frozen;
@@ -135,6 +162,11 @@ class Koopa : public Enemy {
 class Fireball : public Enemy {
   public:
     Fireball(StudentWorld * sw, int x, int y);
+};
+
+class Barrel : public Enemy {
+  public:
+    Barrel(StudentWorld * sw, int x, int y, int dir);
 };
 
 #endif // ACTOR_H_

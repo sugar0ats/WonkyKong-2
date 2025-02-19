@@ -21,6 +21,7 @@ public:
   void setDisplayText(); // set display text to be put on screen
   StudentWorld * getThis();
   Actor * getPtr(int x, int y, Actor* dont_return_me = nullptr);
+  Actor * getPtrExcludingMyself(int x, int y, Actor* dont_return_me);
   void addObject(Actor * ptr);
   void loadLevel(string lvl);
 

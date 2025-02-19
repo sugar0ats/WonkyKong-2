@@ -17,7 +17,15 @@ StudentWorld::StudentWorld(string assetPath)
 
 int StudentWorld::init()
 {
-    loadLevel("level00.txt"); // loads the file and adds all dynamically allocated objects to the private vector
+    string str = "level";
+    if (getLevel() < 10) {
+        str += '0';
+        
+    } 
+    str += (getLevel() + '0');
+    str += ".txt";
+    loadLevel(str); // loads the file and adds all dynamically allocated objects to the private vector
+    cerr << "current level is " << getLevel() << endl;
 
 // 1. Initialize the data structures used to keep track of your game’s level and actors.
 // 2. Load the current level’s details from the appropriate level data file.
@@ -31,18 +39,27 @@ int StudentWorld::init()
 
 int StudentWorld::move()
 {
+    
     m_player->doSomething(); // force the m_player to do something
+    
     for (int i = 0; i < m_actors.size(); i++) {
         m_actors.at(i)->doSomething(); // force every actor to do something
     }
 
     for (int i = 0; i < m_actors.size(); i++) {
         if (m_actors.at(i)->canDie()) {
-            // if (m_actors.at(i)->isDead()) {
-            //     delete m_actors.at(i);
-            //     m_actors.at(i) = nullptr;
-            // }
+            if (m_actors.at(i)->isDead()) {
+                delete m_actors.at(i);
+                m_actors.at(i) = nullptr;
+            }
         }
+    }
+
+    if (m_player != nullptr && m_player->isDead()) {
+        if (getLives() == 0) {
+            //return GWSTAT
+        }
+        return GWSTATUS_PLAYER_DIED;
     }
     return GWSTATUS_CONTINUE_GAME;
 }
@@ -60,6 +77,8 @@ void StudentWorld::cleanUp()
         }
         // remember that you can't delete a nullptr!
     }
+
+    m_actors.clear();
 }
 
 void StudentWorld::loadLevel(string lvl) {
@@ -112,6 +131,7 @@ void StudentWorld::loadLevel(string lvl) {
                     case Level::bonfire: {
                         Bonfire * m_bonfire = new Bonfire(this, x, y);
                         m_actors.push_back(m_bonfire);
+                        cerr << "bonfire created at " << x << ", " << y << endl;
                         break;
                     }
                         
@@ -142,17 +162,31 @@ void StudentWorld::loadLevel(string lvl) {
 
 Actor* StudentWorld::getPtr(int x, int y, Actor* dont_return_me) {
     // what if there are multiple things on the same tile?
+    // if (dont_return_me != nullptr) {
+    //     cerr << "i am going to skip over me" << endl;
+    // }
     for (int i = 0; i < m_actors.size(); i++) {
-        if (m_actors[i] != nullptr && m_actors[i] == dont_return_me) {
-            break;
-        }
-        if (m_actors[i]->getX() == x && m_actors[i]->getY() == y) {
-            // if (m_actors[i] != nullptr && m_actors[i] != dont_return_me) {
-                return m_actors[i];
-            // }
+        if (m_actors.at(i) != dont_return_me) {
             
+            if (m_actors.at(i)->getX() == x && m_actors.at(i)->getY() == y) {
+                if (dont_return_me != nullptr) {
+                    cerr << "i am at position (" << dont_return_me->getX() << ", " << dont_return_me->getY() << "): found another at the same position as me" << endl;
+                }
+                
+                // if (m_actors[i] != nullptr && m_actors[i] != dont_return_me) {
+                    return m_actors[i];
+                // }
+                
+            }
         }
+        
     }
+
+    if (m_player != dont_return_me && m_player->getX() == x && m_player->getY() == y) {
+        cerr << "returning the player!" << endl;
+        return m_player;
+    }
+
     return nullptr;
 }
 
