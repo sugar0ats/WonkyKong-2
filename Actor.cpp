@@ -12,7 +12,7 @@ void Actor::doSomething()
     // stub
 }
 
-void Actor::getAttacked() {
+void Actor::getAttacked(Actor * ptr) {
     // stub
 }
 
@@ -64,11 +64,12 @@ bool Attacker::attack() {
     if (ptr != nullptr && ptr->canDie() && special_conditions(ptr)){
         cerr << "found something...or someone...else!" << endl;
         specialization_attack(ptr); // do something to that other! (like freeze it or something, if it can be frozen)
-        ptr->getAttacked(); // has to know somehow what is attacking it
-        
+        ptr->getAttacked(this); // has to know somehow what is attacking it
+        cerr << "got here" << endl;
         return true;
     }
     // cerr << "didn't find anything..." << endl;
+    
 
     return false;
 }
@@ -78,7 +79,7 @@ void Attacker::specialization_attack(Actor * other) {
 }
 
 bool Attacker::special_conditions(Actor * ptr) {
-    return true;
+    return ptr->canDie() && !ptr->isEvil(); // many enemies by default check for the player.
 }
 
 Floor::Floor(int x, int y) : Actor(nullptr, IID_FLOOR, x, y) {
@@ -105,9 +106,9 @@ bool Bonfire::isDestructive() const {
     return true;
 }
 
-bool Bonfire::special_conditions(Actor * ptr) {
-    return !ptr->isEvil();
-}
+// bool Bonfire::special_conditions(Actor * ptr) {
+//     return !ptr->isEvil();
+// }
 
 void Bonfire::doSomething() {
     increaseAnimationNumber();
@@ -135,7 +136,7 @@ void Mortal::setDead(bool dead) {
     m_alive = !dead;
 }
 
-Goodie::Goodie(StudentWorld * sw, int id, int x, int y) : Mortal(sw, id, x, y) {
+Goodie::Goodie(StudentWorld * sw, int id, int x, int y, int points) : Mortal(sw, id, x, y), m_points(points) {
 
 }
 
@@ -143,20 +144,64 @@ bool Goodie::isGoodie() const {
     return true;
 }
 
-ExtraLifeGoodie::ExtraLifeGoodie(StudentWorld * sw, int x, int y) : Goodie(sw, IID_EXTRA_LIFE_GOODIE, x, y) {
+int Goodie::getPoints() const {
+    return m_points;
+}
+
+// bool Goodie::special_conditions(Actor * ptr) {
+//     return ptr->canDie() && !ptr->isEvil();
+// }
+ 
+void Goodie::doSomething() {
+    if (isDead()) {
+        return;
+    }
+    attack();
+}
+
+void Goodie::specialization_attack(Actor * ptr) {
+    getWorld()->increaseScore(getPoints());
+    setDead(true);
+    getWorld()->playSound(SOUND_GOT_GOODIE);
+}
+
+
+ExtraLifeGoodie::ExtraLifeGoodie(StudentWorld * sw, int x, int y) : Goodie(sw, IID_EXTRA_LIFE_GOODIE, x, y, 50) {
 
 }
 
-GarlicGoodie::GarlicGoodie(StudentWorld * sw, int x, int y) : Goodie(sw, IID_GARLIC_GOODIE, x, y) {
+// void ExtraLifeGoodie::doSomething() {
+//     if (isDead()) {
+//         return;
+//     }
+    
+//     attack();
+// }
+
+// void ExtraLifeGoodie::specialization_attack() {
+//     getWorld()->increaseScore(getPoints());
+//     isDead();
+// }
+
+GarlicGoodie::GarlicGoodie(StudentWorld * sw, int x, int y) : Goodie(sw, IID_GARLIC_GOODIE, x, y, 25) {
 
 }
+
+// void GarlicGoodie::specialization_attack(Actor * other) {
+//     getWorld()->increaseScore(25);
+//     setDead(true);
+//     getWorld()->playSound(SOUND_GOT_GOODIE);
+//     cerr << "found the player, removing myself (i am garlic)" << endl;
+//     // give the player 5 additional burps
+//     // when we attack it
+// }
 
 MovingMortal::MovingMortal(StudentWorld * sw, int id, int x, int y, int direction) : Mortal(sw, id, x, y) {
     setDirection(direction);
 }
 
 bool MovingMortal::canMoveThere(int x, int y) {
-    Actor * ptr = getWorld()->getPtr(x, y);
+    Actor * ptr = getWorld()->getPtr(x, y, this);
     if (ptr == nullptr) {
         return true;
     }
@@ -172,10 +217,11 @@ bool MovingMortal::canMoveThere(int x, int y) {
 
 bool MovingMortal::canFallThere(int x, int y) {
     return canMoveThere(x, y) && !canClimbThere(x, y);
+    // not a floor or? not a ladder
 }
 
 bool MovingMortal::canClimbThere(int x, int y) {
-    Actor * ptr = getWorld()->getPtr(x, y);
+    Actor * ptr = getWorld()->getPtr(x, y, this);
     if (ptr == nullptr || !ptr->isClimbable()) {
         return false;
     } 
@@ -197,6 +243,7 @@ void Burp::doSomething() {
         return;
     } else {
         m_lifetime--;
+        attack();
         // attack enemy on nearby square
 
         // class type Attacker
@@ -205,9 +252,13 @@ void Burp::doSomething() {
     }
 }
 
+bool Burp::special_conditions(Actor * ptr) {
+    return ptr->isEvil();
+}
 
 
-Player::Player(StudentWorld* sw, int x, int y) : MovingMortal(sw, IID_PLAYER, x, y, right), m_lives(getWorld()->getLives()) {
+
+Player::Player(StudentWorld* sw, int x, int y) : MovingMortal(sw, IID_PLAYER, x, y, right), m_lives(getWorld()->getLives()), m_burps(0), m_freezecount(0), m_jumpcount(0) {
     cout << "player has " << getWorld()->getLives() << " lives" << endl;
 }
 
@@ -215,8 +266,23 @@ void Player::setFreezeCount(int count) {
     m_freezecount = count;
 }
 
-void Player::getAttacked() {
-    if (m_freezecount > 0) { // so we don't lose a life when frozen
+void Player::giveBurps(int n) {
+    m_burps = n;
+}
+
+
+void Player::getAttacked(Actor * ptr) {
+    // if (m_freezecount > 0) { // so we don't lose a life when frozen
+    //     return;
+    // }
+    if (ptr->isSmelly()) {
+        cerr << "give the player 5 burps!" << endl;
+        giveBurps(5);
+        return;
+    }
+    if (ptr->isExtra()) {
+        getWorld()->incLives();
+        cerr << "player now has " << getWorld()->getLives() << endl;
         return;
     }
     
@@ -226,6 +292,7 @@ void Player::getAttacked() {
     setDead(true);
     cerr << "player now has " << getWorld()->getLives() << endl;
 }
+
 
 
 void Player::doSomething() {
@@ -342,11 +409,13 @@ void Player::doSomething() {
                 }
                 case KEY_PRESS_TAB: {
                     //... burp if you have burps left ...
+                    cout << "you have " << m_burps << " left" << endl;
                     if (m_burps > 0) {
                         Burp * m_burp = new Burp(getWorld(), getX() + (getDirection() == left ? -1 : 1), getY(), getDirection());
+                        getWorld()->playSound(SOUND_BURP);
                         getWorld()->addObject(m_burp);
                         cerr << "new burp created!" << endl;
-                        m_burp--;
+                        m_burps--;
                     }
                     break;
                     // etc…
@@ -360,6 +429,10 @@ void Player::doSomething() {
     if (direction_to_travel_in[0] != 0 || direction_to_travel_in[1] != 0) {
         moveTo(getX() + direction_to_travel_in[0], getY() + direction_to_travel_in[1]);
     }
+}
+
+void Player::setFrozenTicks(int n) {
+    m_freezecount = n;
 }
 
 Enemy::Enemy(StudentWorld* sw, int id, int x, int y, int dir) : MovingMortal(sw, id, x, y, dir) {
@@ -379,7 +452,108 @@ Koopa::Koopa(StudentWorld* sw, int x, int y) : Enemy(sw, IID_KOOPA, x, y, randIn
 
 }
 
-Fireball::Fireball(StudentWorld* sw, int x, int y) : Enemy(sw, IID_FIREBALL, x, y, randInt(0, 1) == 0 ? left : right) {
+Fireball::Fireball(StudentWorld* sw, int x, int y) : Enemy(sw, IID_FIREBALL, x, y, randInt(0, 1) == 0 ? left : right), m_climbing_state(0), m_delay(0) {
+
+}
+
+bool Fireball::isClimbingUp() const {
+    return m_climbing_state == 1;
+}
+
+bool Fireball::isClimbingDown() const {
+    return m_climbing_state == -1;
+}
+
+bool Fireball::isClimbing() const {
+    return isClimbingUp() || isClimbingDown();
+}
+
+void Fireball::setClimbingState(int i) {
+    m_climbing_state = i;
+}
+
+int Fireball::getClimbingState() const {
+    return m_climbing_state;
+}
+
+void Fireball::doSomething() {
+    if (isDead()) {
+        return;
+    }
+
+    attack();
+
+    if (m_delay >= 10) {
+        m_delay = 0;
+        int dir = (getDirection() == left) ? -1 : 1;
+        if (dir == 1) {
+            cerr << "going right!" << endl;
+        } else {
+            cerr << "going left!" << endl;
+        }
+        // if (canMoveThere(getX(), getY()+1)) {
+        //     cerr << "can move one up" << endl;
+        // }
+        // if (canClimbThere(getX(), getY()+1)) {
+        //     cerr << "can climb one up" << endl;
+        // }
+        // if (canClimbThere(getX(), getY())) {
+        //     cerr << "can climb here" << endl;
+        // }
+        bool alreadyMoved = false;
+        if (canClimbThere(getX(), getY()) && (canMoveThere(getX(), getY()+1) || canClimbThere(getX(), getY() + 1)) && !isClimbingDown()) {
+            cerr << "deciding if i should climb up!" << endl;
+            if (isClimbingUp() || randInt(0, 2) == 0) {
+                setClimbingState(1);
+                moveTo(getX(), getY() + 1); // move up, down, left, right can be turned into member functions of moving mortal
+                alreadyMoved = true;
+            }
+            
+        } else if (canClimbThere(getX(), getY() - 1) && !isClimbingUp()) {
+            cerr << "deciding if i should climb down!" << endl;
+            if (isClimbingDown() || randInt(0, 2) == 0) {
+                setClimbingState(-1);
+                moveTo(getX(), getY() - 1);
+                alreadyMoved = true;
+            }
+            
+        } 
+
+        if (!alreadyMoved) {
+            if (isClimbing() && (!canClimbThere(getX(), getY() + getClimbingState()) || !canMoveThere(getX(), getY() + getClimbingState()))) {
+                cerr << "not climbing anymore" << endl;
+                setClimbingState(0);
+            }
+            if (!canMoveThere(getX() + dir, getY()) || canFallThere(getX() + dir, getY() - 1)) {
+                if (!canMoveThere(getX() + dir, getY())) {
+                    cerr << "reason: wall there" << endl;
+                } 
+                if (canFallThere(getX() + dir, getY() - 1)){
+                    cerr << "reason: i'd fall!" << endl;
+                } 
+                cerr << "can't go in that direction anymore, reversing" << endl;
+                setDirection(dir == 1 ? left : right); // reverse direction of fireball
+                dir = getDirection() == left ? -1 : 1;
+                alreadyMoved = true;
+                
+            } 
+
+        }
+        if (!alreadyMoved) {
+            // else {
+                cerr << "going on my merry way!" << endl;
+                moveTo(getX() + dir, getY());
+            
+        }
+
+        attack();
+
+        cerr << "----" << endl;
+
+    }
+
+    
+    m_delay++;
 
 }
 

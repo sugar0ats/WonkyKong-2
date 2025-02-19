@@ -43,14 +43,20 @@ int StudentWorld::move()
     m_player->doSomething(); // force the m_player to do something
     
     for (int i = 0; i < m_actors.size(); i++) {
-        m_actors.at(i)->doSomething(); // force every actor to do something
+        if (m_actors.at(i) != nullptr) {
+            m_actors.at(i)->doSomething(); // force every actor to do something
+        }
+        
     }
 
     for (int i = 0; i < m_actors.size(); i++) {
         if (m_actors.at(i)->canDie()) {
             if (m_actors.at(i)->isDead()) {
                 delete m_actors.at(i);
+                cerr << "deleted the guy" << endl;
                 m_actors.at(i) = nullptr;
+                //m_actors.erase()
+                m_actors.erase(m_actors.begin() + i);
             }
         }
     }
@@ -170,7 +176,7 @@ Actor* StudentWorld::getPtr(int x, int y, Actor* dont_return_me) {
             
             if (m_actors.at(i)->getX() == x && m_actors.at(i)->getY() == y) {
                 if (dont_return_me != nullptr) {
-                    cerr << "i am at position (" << dont_return_me->getX() << ", " << dont_return_me->getY() << "): found another at the same position as me" << endl;
+                    // cerr << "i am at position (" << dont_return_me->getX() << ", " << dont_return_me->getY() << "): found another at the same position as me" << endl;
                 }
                 
                 // if (m_actors[i] != nullptr && m_actors[i] != dont_return_me) {

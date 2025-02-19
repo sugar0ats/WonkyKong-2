@@ -9,17 +9,21 @@ class Actor : public GraphObject
   public:
     Actor(StudentWorld* sw, int ID, int x, int y);
     virtual void doSomething(); // should i make this virtual?
-    virtual void getAttacked();
+    virtual void getAttacked(Actor * ptr);
     virtual bool canDie() const; // mortals
     virtual bool isEvil() const; // enemies
     virtual bool isClimbable() const; // ladder
     virtual bool isObstruction() const; // floor
     virtual bool isDestructive() const; // bonfires
     virtual bool isGoodie() const; // goodie
+    virtual bool isSmelly() const {return false;}
+    virtual bool isExtra() const {return false;}
     virtual bool isDead() const;
+    // virtual bool isPlayer() const {};
     virtual bool isAnimated() const {return false;};
     virtual bool attack() {return false;}
     virtual bool canRoll() {return false;}
+    virtual bool canFreezeOthers() {return false;}
     StudentWorld* getWorld() const;
 
   private:
@@ -66,7 +70,7 @@ class Bonfire : public Attacker {
     Bonfire(StudentWorld * sw, int x, int y);
     virtual bool isDestructive() const; // override this
     virtual void doSomething();
-    virtual bool special_conditions(Actor * ptr);
+    // virtual bool special_conditions(Actor * ptr);
   private:
     
 };
@@ -86,20 +90,34 @@ class Mortal : public Attacker {
 
 class Goodie : public Mortal {
   public:
-    Goodie(StudentWorld * sw, int id, int x, int y);
-  private:
+    Goodie(StudentWorld * sw, int id, int x, int y, int points);
+    // virtual bool special_conditions(Actor * ptr);
     virtual bool isGoodie() const;
+    virtual void doSomething();
+    virtual void specialization_attack(Actor * ptr);
+    
+    int getPoints() const;
+  private:
+    int m_points;
+    
 };
 
 class ExtraLifeGoodie : public Goodie {
   public:
     ExtraLifeGoodie(StudentWorld * sw, int x, int y);
+    // virtual void doSomething();
+    // virtual void specialization_attack(Actor * other);
+    virtual bool isExtra() const {return true;}
   private:
 };
 
 class GarlicGoodie : public Goodie {
   public:
     GarlicGoodie(StudentWorld * sw, int x, int y);
+    // virtual void doSomething();
+    virtual bool isSmelly() const {return true;}
+    // virtual bool special_conditions(Actor * ptr);
+    // virtual void specialization_attack(Actor * other);
 
 };
 
@@ -119,6 +137,7 @@ class Burp : public MovingMortal {
   public:
     Burp(StudentWorld * sw, int x, int y, int dir);
     virtual void doSomething();
+    virtual bool special_conditions(Actor * ptr);
   private:
     int m_lifetime;
 
@@ -129,7 +148,12 @@ class Player : public MovingMortal {
       Player(StudentWorld* sw, int x, int y);
       virtual void doSomething();
       void setFreezeCount(int count);
-      virtual void getAttacked();
+      virtual void getAttacked(Actor * ptr);
+      void giveBurps(int n);
+      void setFrozenTicks(int n);
+      
+      // virtual bool attack();
+      // virtual bool special_conditions(Actor * ptr); 
       // virtual bool isDead() const;
       // bool canMoveThere(int x, int y);
   private: 
@@ -162,6 +186,19 @@ class Koopa : public Enemy {
 class Fireball : public Enemy {
   public:
     Fireball(StudentWorld * sw, int x, int y);
+    virtual void doSomething();
+  private:
+    int m_climbing_state; // make constants in GameConstants.h later
+    // 0 is not climbing
+    // 1 is climbing up
+    // -1 is climbing down
+    int m_delay;
+    
+    bool isClimbingUp() const;
+    bool isClimbingDown() const;
+    bool isClimbing() const;
+    int getClimbingState() const;
+    void setClimbingState(int i);
 };
 
 class Barrel : public Enemy {
