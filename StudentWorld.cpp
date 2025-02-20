@@ -2,6 +2,9 @@
 #include "Actor.h"
 #include "GameConstants.h"
 #include <string>
+#include <iostream> // defines the overloads of the << operator
+#include <sstream>  // defines the type std::ostringstream
+#include <iomanip>  // defines the manipulator setw
 using namespace std;
 
 GameWorld* createStudentWorld(string assetPath)
@@ -10,13 +13,16 @@ GameWorld* createStudentWorld(string assetPath)
 }
 
 StudentWorld::StudentWorld(string assetPath)
-: GameWorld(assetPath)
+: GameWorld(assetPath), m_level_completed(false)
 {
     // any data members to initialize?
 }
 
 int StudentWorld::init()
 {
+    if (getLevel() == 100) { 
+        return GWSTATUS_PLAYER_WON;
+    }
     string str = "level";
     if (getLevel() < 10) {
         str += '0';
@@ -24,7 +30,8 @@ int StudentWorld::init()
     } 
     str += (getLevel() + '0');
     str += ".txt";
-    loadLevel(str); // loads the file and adds all dynamically allocated objects to the private vector
+    int result = loadLevel(str); // loads the file and adds all dynamically allocated objects to the private vector
+    
     cerr << "current level is " << getLevel() << endl;
 
 // 1. Initialize the data structures used to keep track of your game’s level and actors.
@@ -33,13 +40,20 @@ int StudentWorld::init()
 // 4. Allocate and insert any Kong objects, Floor objects, Ladder objects, Bonfire objects,
 // Fireball objects, Koopa objects, Goodie objects, or other relevant objects into the game
 // world, as required by the specification in the current level’s data file.
-
+    switch(result) {
+        case GWSTATUS_PLAYER_WON: {
+            return GWSTATUS_PLAYER_WON;
+        }
+        case GWSTATUS_LEVEL_ERROR: {
+            return GWSTATUS_LEVEL_ERROR;
+        }
+    }
     return GWSTATUS_CONTINUE_GAME;
 }
 
 int StudentWorld::move()
 {
-    
+    setDisplayText();
     m_player->doSomething(); // force the m_player to do something
     
     for (int i = 0; i < m_actors.size(); i++) {
@@ -62,12 +76,53 @@ int StudentWorld::move()
     }
 
     if (m_player != nullptr && m_player->isDead()) {
-        if (getLives() == 0) {
-            //return GWSTAT
-        }
         return GWSTATUS_PLAYER_DIED;
     }
+
+    if (getLevelCompletedStatus()) {
+        setLevelCompleted(false);
+        return GWSTATUS_FINISHED_LEVEL;
+    }
+    
     return GWSTATUS_CONTINUE_GAME;
+}
+
+void StudentWorld::setLevelCompleted(bool b) {
+    m_level_completed = b;
+}
+
+bool StudentWorld::getLevelCompletedStatus() const {
+    return m_level_completed;
+}
+
+void StudentWorld::setDisplayText() {
+    int score = getScore();
+    int level = getLevel();
+    int livesLeft = getLives();
+    unsigned int burps = getPlayer()->getNumBurps();
+    // Next, create a string from your statistics, of the form:
+    // Score: 0000100 Level: 03 Lives: 03 Burps: 08
+    // string s = generate_stats(score, level, livesLeft, burps);
+
+    ostringstream oss;
+    oss << "Score: ";
+    oss.fill('0');
+    oss << setw(7) << score;
+    
+    oss << "  Level: ";
+    oss << setw(2) << level;
+    // oss.fill('0');
+    oss << "  Lives: ";
+    oss << setw(2) << livesLeft;
+    // oss.fill('0');
+    oss << "  Burps: ";
+    oss << setw(2) << burps;
+    // oss.fill('0');
+
+    string s = oss.str();
+    // Finally, update the display text at the top of the screen with your
+    // newly created stats
+    setGameStatText(s); // calls our provided GameWorld::setGameStatText
 }
 
 void StudentWorld::cleanUp()
@@ -87,13 +142,17 @@ void StudentWorld::cleanUp()
     m_actors.clear();
 }
 
-void StudentWorld::loadLevel(string lvl) {
+int StudentWorld::loadLevel(string lvl) {
     Level lev(assetPath());
     Level::LoadResult result = lev.loadLevel(lvl);
-    if (result == Level::load_fail_file_not_found)
-    cerr << "Could not find level00.txt data file\n";
-    else if (result == Level::load_fail_bad_format)
-    cerr << "Your level was improperly formatted\n";
+    if (result == Level::load_fail_file_not_found) {
+        cerr << "Could not find level00.txt data file\n";
+        return GWSTATUS_PLAYER_WON;
+    }
+    else if (result == Level::load_fail_bad_format) {
+        cerr << "Your level was improperly formatted\n";
+        return GWSTATUS_LEVEL_ERROR;
+    }
     else if (result == Level::load_success)
         {
         cerr << "Successfully loaded level\n";
@@ -115,12 +174,12 @@ void StudentWorld::loadLevel(string lvl) {
                         break;
                     }
                     case Level::left_kong: {
-                        Kong * m_kong = new Kong(this, x, y, GraphObject::right);
+                        Kong * m_kong = new Kong(this, x, y, GraphObject::left);
                         m_actors.push_back(m_kong);
                         break;
                     }
                     case Level::right_kong: {
-                        Kong * m_kong = new Kong(this, x, y, GraphObject::left);
+                        Kong * m_kong = new Kong(this, x, y, GraphObject::right);
                         m_actors.push_back(m_kong);
                         break;
                     }
@@ -164,9 +223,10 @@ void StudentWorld::loadLevel(string lvl) {
             }
         }
     }
+    return GWSTATUS_CONTINUE_GAME;
 }
 
-Actor* StudentWorld::getPtr(int x, int y, Actor* dont_return_me) {
+Actor* StudentWorld::getPtr(int x, int y, Actor* dont_return_me, bool only_return_what_can_die) {
     // what if there are multiple things on the same tile?
     // if (dont_return_me != nullptr) {
     //     cerr << "i am going to skip over me" << endl;
@@ -175,12 +235,21 @@ Actor* StudentWorld::getPtr(int x, int y, Actor* dont_return_me) {
         if (m_actors.at(i) != dont_return_me) {
             
             if (m_actors.at(i)->getX() == x && m_actors.at(i)->getY() == y) {
-                if (dont_return_me != nullptr) {
-                    // cerr << "i am at position (" << dont_return_me->getX() << ", " << dont_return_me->getY() << "): found another at the same position as me" << endl;
+                // if (dont_return_me != nullptr) {
+                //     // cerr << "i am at position (" << dont_return_me->getX() << ", " << dont_return_me->getY() << "): found another at the same position as me" << endl;
+                // }
+                if (only_return_what_can_die && m_actors.at(i)->canDie()) {
+                    // cerr << "returning what can die" << endl;
+                    return m_actors[i];
+                    // continue;
+                } 
+
+                if (!only_return_what_can_die) {
+                    return m_actors[i];
                 }
                 
                 // if (m_actors[i] != nullptr && m_actors[i] != dont_return_me) {
-                    return m_actors[i];
+                    
                 // }
                 
             }
@@ -194,6 +263,10 @@ Actor* StudentWorld::getPtr(int x, int y, Actor* dont_return_me) {
     }
 
     return nullptr;
+}
+
+Player * StudentWorld::getPlayer() const {
+    return m_player;
 }
 
 void StudentWorld::addObject(Actor * ptr) {

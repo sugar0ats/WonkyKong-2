@@ -22,8 +22,9 @@ class Actor : public GraphObject
     // virtual bool isPlayer() const {};
     virtual bool isAnimated() const {return false;};
     virtual bool attack() {return false;}
-    virtual bool canRoll() {return false;}
-    virtual bool canFreezeOthers() {return false;}
+    virtual bool canRoll() const {return false;}
+    virtual bool canFreezeOthers() const {return false;}
+    virtual bool isGas() const {return false;}
     StudentWorld* getWorld() const;
 
   private:
@@ -70,7 +71,7 @@ class Bonfire : public Attacker {
     Bonfire(StudentWorld * sw, int x, int y);
     virtual bool isDestructive() const; // override this
     virtual void doSomething();
-    // virtual bool special_conditions(Actor * ptr);
+    virtual bool special_conditions(Actor * ptr);
   private:
     
 };
@@ -138,6 +139,7 @@ class Burp : public MovingMortal {
     Burp(StudentWorld * sw, int x, int y, int dir);
     virtual void doSomething();
     virtual bool special_conditions(Actor * ptr);
+    virtual bool isGas() const {return true;}
   private:
     int m_lifetime;
 
@@ -151,6 +153,7 @@ class Player : public MovingMortal {
       virtual void getAttacked(Actor * ptr);
       void giveBurps(int n);
       void setFrozenTicks(int n);
+      int getNumBurps() const;
       
       // virtual bool attack();
       // virtual bool special_conditions(Actor * ptr); 
@@ -168,31 +171,57 @@ class Enemy : public MovingMortal {
   public:
     Enemy(StudentWorld* sw, int id, int x, int y, int dir);
     virtual bool isEvil() const;
+    virtual void getAttacked(Actor * ptr);
+    virtual void special_death_actions() {};
+    virtual bool timeToDoAction(int n);
   private:
+    int m_delay;
     
 };
 
 class Kong : public Enemy {
   public:
     Kong(StudentWorld * sw, int x, int y, int dir);
+    virtual void doSomething();
+    // bool isLevelCompleted() const;
+  private:
+    bool m_flee_state;
+    int euclidian_dist_w_player();
+    void setFlee(bool value);
+    int m_time_since_last_barrel;
+    int m_barrel_throw_period;
+    bool isFleeing() const;
+    // bool m_level_completed;
+    // void setLevelCompleted(bool b);
 
 };
 
 class Koopa : public Enemy {
   public:
     Koopa(StudentWorld * sw, int x, int y);
+    virtual void doSomething();
+    virtual bool special_conditions(Actor * ptr);
+    virtual void specialization_attack(Actor * ptr);
+    virtual void special_death_actions();
+    virtual bool canFreezeOthers() const {return true;}
+  private:
+    int m_freeze_cooldown;
+    bool m_just_froze_something;
+    int m_delay;
 };
 
 class Fireball : public Enemy {
   public:
     Fireball(StudentWorld * sw, int x, int y);
     virtual void doSomething();
+    virtual void special_death_actions();
+    // virtual void getAttacked(Actor * ptr);
   private:
     int m_climbing_state; // make constants in GameConstants.h later
     // 0 is not climbing
     // 1 is climbing up
     // -1 is climbing down
-    int m_delay;
+    // int m_delay;
     
     bool isClimbingUp() const;
     bool isClimbingDown() const;
@@ -204,6 +233,12 @@ class Fireball : public Enemy {
 class Barrel : public Enemy {
   public:
     Barrel(StudentWorld * sw, int x, int y, int dir);
+    virtual bool canRoll() const {return true;}
+    virtual void doSomething();
+    virtual void getAttacked(Actor * ptr);
+    //virtual bool special_conditions(Actor * ptr);
+  private:
+    int m_delay;
 };
 
 #endif // ACTOR_H_
