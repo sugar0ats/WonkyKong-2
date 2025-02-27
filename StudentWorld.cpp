@@ -20,7 +20,8 @@ StudentWorld::StudentWorld(string assetPath)
 
 int StudentWorld::init()
 {
-    if (getLevel() == 100) { 
+    // DEBUG
+    if (getLevel() == 100) { // TEMPORARILY, ORIGINALLY 100 
         return GWSTATUS_PLAYER_WON;
     }
     string str = "level";
@@ -31,8 +32,11 @@ int StudentWorld::init()
     str += (getLevel() + '0');
     str += ".txt";
     int result = loadLevel(str); // loads the file and adds all dynamically allocated objects to the private vector
-    
+    // int result = loadLevel("level02.txt");
     cerr << "current level is " << getLevel() << endl;
+
+    // debug region:
+    // m_actors.push_back(new Koopa(this, 2, 4));
 
 // 1. Initialize the data structures used to keep track of your game’s level and actors.
 // 2. Load the current level’s details from the appropriate level data file.
@@ -75,7 +79,7 @@ int StudentWorld::move()
         }
     }
 
-    if (m_player != nullptr && m_player->isDead()) {
+    if (m_player != nullptr && m_player->isDead()) { // the player pointer will be deleted when we call cleanUp()
         return GWSTATUS_PLAYER_DIED;
     }
 
@@ -189,6 +193,7 @@ int StudentWorld::loadLevel(string lvl) {
                         break;
                     }
                     case Level::koopa: {
+                        cerr << "koopa created at " << x << ", " << y << endl;
                         Koopa * m_koopa = new Koopa(this, x, y);
                         m_actors.push_back(m_koopa);
                         break;

@@ -360,7 +360,7 @@ void Player::doSomething() {
         }
 
         m_jumpcount--;
-    } else if (canFallThere(getX(), getY() - 1)) { // if space below is empty
+    } else if (canFallThere(getX(), getY() - 1) && !canClimbThere(getX(), getY())) { // if space below is empty
         direction_to_travel_in[1] = -1;
     } else {
         int ch;
@@ -371,13 +371,13 @@ void Player::doSomething() {
             switch (ch)
             {
                 case KEY_PRESS_DOWN: {
-                    if (canClimbThere(getX(), getY() - 1)) {
+                    if (canClimbThere(getX(), getY() - 1) || (canClimbThere(getX(), getY()) && canMoveThere(getX(), getY() - 1))) {
                         direction_to_travel_in[1] = -1;
                     }
                     break;
                 }
                 case KEY_PRESS_UP: {
-                    if (canClimbThere(getX(), getY())) {
+                    if (canClimbThere(getX(), getY()) && canMoveThere(getX(), getY() + 1)) {
                         direction_to_travel_in[1] = 1;
                     }
                     break;
@@ -421,6 +421,7 @@ void Player::doSomething() {
                 }
                 
                 case KEY_PRESS_SPACE: {
+                    getWorld()->playSound(SOUND_JUMP);
                     if (m_jumpcount <= 0) {
                         m_jumpcount = 4;
                         if (canMoveThere(getX(), getY() + 1)) {
@@ -583,6 +584,7 @@ void Koopa::doSomething() {
         m_freeze_cooldown--;
     }
 
+    // COMMENT BACK IN ONCE DONE DEBUGGING
     int dir = (getDirection() == left) ? -1 : 1;
     if (!m_just_froze_something && timeToDoAction(10)) {
         // m_delay = 0;
@@ -772,9 +774,8 @@ void Barrel::getAttacked(Actor * ptr) {
     if (!ptr->isDestructive()) {
         getWorld()->increaseScore(100);
         getWorld()->playSound(SOUND_ENEMY_DIE);
-        cerr << "something else is attacking me!" << endl;
+        //cerr << "something else is attacking me!" << endl;
     } 
-    // getWorld()->increaseScore(100);
     setDead(true);
     return;
     
