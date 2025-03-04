@@ -136,7 +136,11 @@ class Player : public MovingMortal {
       virtual void getAttacked(Actor * ptr);
       void giveBurps(int n);
       int getNumBurps() const;
+      
   private: 
+      void addBurp();
+      int startJump();
+      int moveLaterally(int dir);
       int m_freezecount;
       int m_burps;
       int m_jumpcount;
@@ -146,6 +150,8 @@ class Enemy : public MovingMortal {
   public:
     Enemy(StudentWorld* sw, int id, int x, int y, int dir);
     virtual bool isEvil() const;
+    virtual void doSomething();
+    virtual void specialized_enemy_actions();
     virtual void getAttacked(Actor * ptr);
     virtual bool timeToDoAction(int n);
   private:
@@ -157,10 +163,10 @@ class Enemy : public MovingMortal {
 class Kong : public Enemy {
   public:
     Kong(StudentWorld * sw, int x, int y, int dir);
-    virtual void doSomething();
     virtual void getAttacked(Actor * ptr); // do nothing
     // bool isLevelCompleted() const;
   private:
+  virtual void specialized_enemy_actions();
     bool m_flee_state;
     int euclidian_dist_w_player();
     void setFlee(bool value);
@@ -168,36 +174,29 @@ class Kong : public Enemy {
     int m_barrel_throw_period;
     bool isFleeing() const;
     
-
 };
 
 class Koopa : public Enemy {
   public:
     Koopa(StudentWorld * sw, int x, int y);
-    virtual void doSomething();
-    
-    // virtual bool canFreezeOthers() const {return true;}
   private:
   virtual void special_death_actions();
+  virtual void specialized_enemy_actions();
   virtual bool specialization_attack(Actor * ptr);
   virtual bool special_conditions(Actor * ptr);
     int m_freeze_cooldown;
     bool m_just_froze_something;
-    int m_delay;
 };
 
 class Fireball : public Enemy {
   public:
     Fireball(StudentWorld * sw, int x, int y);
-    virtual void doSomething();
-    
-    // virtual void getAttacked(Actor * ptr);
   private:
     int m_climbing_state; // make constants in GameConstants.h later
     // 0 is not climbing
     // 1 is climbing up
     // -1 is climbing down
-    // int m_delay;
+    virtual void specialized_enemy_actions();
     virtual void special_death_actions();
     bool isClimbingUp() const;
     bool isClimbingDown() const;
@@ -210,10 +209,10 @@ class Barrel : public Enemy {
   public:
     Barrel(StudentWorld * sw, int x, int y, int dir);
     virtual bool canRoll() const {return true;}
-    virtual void doSomething();
     virtual void getAttacked(Actor * ptr);
   private:
-    int m_delay;
+    virtual void specialized_enemy_actions();
+    
 };
 
 #endif // ACTOR_H_

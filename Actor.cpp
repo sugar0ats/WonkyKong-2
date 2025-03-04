@@ -320,63 +320,21 @@ void Player::doSomething() {
                     break;
                 }
                 case KEY_PRESS_LEFT: {
-                    // if current direction isn't left, set it to left and break!
-                    if (getDirection() != left) { 
-                        setDirection(left);
-                        break;
-                    }
-
-                    // if you can't move to the left, break early!
-                    if (!canMoveThere(getX() - 1, getY())) {
-                        break;
-                    }
-                    
-                    // if you can move to the left, change the direction to move in to reflect that we'll be going left
-                    direction_to_travel_in[0] = -1;
+                    direction_to_travel_in[0] = moveLaterally(left);
                     break;
                 }
                 
                 case KEY_PRESS_RIGHT: {
-                    // if current direction isn't right, set it to right and break!
-                    // if tile to the right is a wall, break
-                    // else set location to c+1, r
-                    if (getDirection() != right) { 
-                        setDirection(right);
-                        break;
-                    }
-                    if (!canMoveThere(getX() + 1, getY())) {
-                        break;
-                    }
-                    direction_to_travel_in[0] = 1;
+                    direction_to_travel_in[0] = moveLaterally(right);
                     break;
                 }
                 
                 case KEY_PRESS_SPACE: {
-                    // initiate a jump sequence!
-                    getWorld()->playSound(SOUND_JUMP);
-                    // if we aren't already jumping:
-                    if (m_jumpcount <= 0) {
-                        m_jumpcount = 4;
-                        // do the first tick of the jump, which is to check if we can move one up. move one up if we can.
-                        if (canMoveThere(getX(), getY() + 1)) {
-                            direction_to_travel_in[1] = 1;
-                        } else {
-                            m_jumpcount = 0; // terminate the jump early
-                        }
-                    }
+                    direction_to_travel_in[1] = startJump();
                     break;
                 }
                 case KEY_PRESS_TAB: {
-                    // if we have burps,
-                    if (m_burps > 0) {
-                        // create a new burp in the direction the player is standing
-                        Burp * m_burp = new Burp(getWorld(), getX() + (getDirection() == left ? -1 : 1), getY(), getDirection());
-                        // play the corresponding sounds and add the Burp to the list of actors in StudentWorld
-                        getWorld()->playSound(SOUND_BURP);
-                        getWorld()->addObject(m_burp);
-                        m_burps--;
-                        // decrement the number of burps after using one
-                    }
+                    addBurp();
                     break;
                 }
                 
@@ -391,6 +349,51 @@ void Player::doSomething() {
     }
 }
 
+int Player::startJump() {
+    // initiate a jump sequence!
+    getWorld()->playSound(SOUND_JUMP);
+    // if we aren't already jumping:
+    if (m_jumpcount <= 0) {
+        m_jumpcount = 4;
+        // do the first tick of the jump, which is to check if we can move one up. move one up if we can.
+        if (canMoveThere(getX(), getY() + 1)) {
+            return 1;
+        } else {
+            m_jumpcount = 0; // terminate the jump early
+            
+        }
+    }
+    return 0;
+}
+
+void Player::addBurp() {
+    // if we have burps,
+    if (m_burps > 0) {
+        // create a new burp in the direction the player is standing
+        Burp * m_burp = new Burp(getWorld(), getX() + (getDirection() == left ? -1 : 1), getY(), getDirection());
+        // play the corresponding sounds and add the Burp to the list of actors in StudentWorld
+        getWorld()->playSound(SOUND_BURP);
+        getWorld()->addObject(m_burp);
+        m_burps--;
+        // decrement the number of burps after using one
+    }
+}
+
+int Player::moveLaterally(int dir) {
+    int d = (dir == right ? 1 : -1);
+
+    // if the direction we want to go in isn't the direction we currently face,
+    if (getDirection() != dir) { 
+        setDirection(dir); // set it to the player's direction and return.
+        return 0;
+    }
+    // if we can't move in the desired direction,
+    if (!canMoveThere(getX() + d, getY())) {
+        return 0; // return early.
+    }
+    return d; // return the value needed to move the player 1 tile in that direction
+}
+
 Enemy::Enemy(StudentWorld* sw, int id, int x, int y, int dir) : MovingMortal(sw, id, x, y, dir), m_delay(0) {
 
 }
@@ -399,11 +402,27 @@ bool Enemy::isEvil() const {
     return true;
 }
 
+void Enemy::specialized_enemy_actions() {
+
+}
+
 void Enemy::getAttacked(Actor * ptr) {
     setDead(true);
     getWorld()->playSound(SOUND_ENEMY_DIE);
     getWorld()->increaseScore(100);
     special_death_actions(); // when an enemy dies, it might have some special behavior that it does 
+}
+
+// each tick, an Enemy checks if it has died,
+void Enemy::doSomething() {
+    if (isDead()) {
+        return;
+    }
+
+    attack(); // it must also attack
+
+    specialized_enemy_actions(); // and perform specialized actions
+
 }
 
 // for cooldown actions, that is, actions that occur every n ticks. they can be generalized with this function that all Enemys inherit
@@ -429,11 +448,7 @@ bool Kong::isFleeing() const {
     return m_flee_state;
 }
 
-void Kong::doSomething() {
-    if (isDead()) {
-        return;
-    }
-
+void Kong::specialized_enemy_actions() {
     increaseAnimationNumber();
 
     // if the Kong is within 2 tiles of the player, it must begin fleeing
@@ -474,41 +489,11 @@ void Kong::getAttacked(Actor * ptr) {
 }
 
 
-Koopa::Koopa(StudentWorld* sw, int x, int y) : Enemy(sw, IID_KOOPA, x, y, randInt(0, 1) == 0 ? left : right), m_freeze_cooldown(0), m_just_froze_something(false), m_delay(0) {
+Koopa::Koopa(StudentWorld* sw, int x, int y) : Enemy(sw, IID_KOOPA, x, y, randInt(0, 1) == 0 ? left : right), m_freeze_cooldown(0), m_just_froze_something(false) {
 
 }
 
-// Koopa will only attack the player if its freeze cooldown is 0
-bool Koopa::special_conditions(Actor * ptr) {
-    return m_freeze_cooldown <= 0 && Attacker::special_conditions(ptr);
-}
-
-bool Koopa::specialization_attack(Actor * ptr) {
-    m_freeze_cooldown = 50; // set its freeze cooldown so it can't repeatedly freeze the player
-    m_just_froze_something = true;
-
-    // access just the player in particular
-    Player * m_p = getWorld()->getPlayer();
-    m_p->setFreezeCount(50);
-    
-    return false;
-}
-
-void Koopa::special_death_actions() {
-    // Koopa has a one in three chance of dropping an ExtraLifeGoodie
-    if (randInt(0, 2) == 0) {
-        ExtraLifeGoodie * m_extra = new ExtraLifeGoodie(getWorld(), getX(), getY());
-        getWorld()->addObject(m_extra);
-    }
-}
-
-
-void Koopa::doSomething() {
-    if (isDead()) {
-        return;
-    }
-    attack();
-
+void Koopa::specialized_enemy_actions() {
     // if the cooldown is greater than 0, decrement until it is at 0
     if (m_freeze_cooldown > 0) {
         m_freeze_cooldown--;
@@ -535,40 +520,37 @@ void Koopa::doSomething() {
     } 
 
     m_just_froze_something = false;
+}
 
+// Koopa will only attack the player if its freeze cooldown is 0
+bool Koopa::special_conditions(Actor * ptr) {
+    return m_freeze_cooldown <= 0 && Attacker::special_conditions(ptr);
+}
+
+bool Koopa::specialization_attack(Actor * ptr) {
+    m_freeze_cooldown = 50; // set its freeze cooldown so it can't repeatedly freeze the player
+    m_just_froze_something = true;
+
+    // access just the player in particular
+    Player * m_p = getWorld()->getPlayer();
+    m_p->setFreezeCount(50);
+    
+    return false;
+}
+
+void Koopa::special_death_actions() {
+    // Koopa has a one in three chance of dropping an ExtraLifeGoodie
+    if (randInt(0, 2) == 0) {
+        ExtraLifeGoodie * m_extra = new ExtraLifeGoodie(getWorld(), getX(), getY());
+        getWorld()->addObject(m_extra);
+    }
 }
 
 Fireball::Fireball(StudentWorld* sw, int x, int y) : Enemy(sw, IID_FIREBALL, x, y, randInt(0, 1) == 0 ? left : right), m_climbing_state(0) {
 
 }
 
-bool Fireball::isClimbingUp() const {
-    return m_climbing_state == 1;
-}
-
-bool Fireball::isClimbingDown() const {
-    return m_climbing_state == -1;
-}
-
-bool Fireball::isClimbing() const {
-    return isClimbingUp() || isClimbingDown();
-}
-
-void Fireball::setClimbingState(int i) {
-    m_climbing_state = i;
-}
-
-int Fireball::getClimbingState() const {
-    return m_climbing_state;
-}
-
-void Fireball::doSomething() {
-    if (isDead()) {
-        return;
-    }
-
-    attack();
-
+void Fireball::specialized_enemy_actions() {
     // every 10 ticks, the Fireball moves:
     if (timeToDoAction(10)) {
         // get the direction the Fireball is currently facing
@@ -618,7 +600,26 @@ void Fireball::doSomething() {
         }
         attack();
     }
+}
 
+bool Fireball::isClimbingUp() const {
+    return m_climbing_state == 1;
+}
+
+bool Fireball::isClimbingDown() const {
+    return m_climbing_state == -1;
+}
+
+bool Fireball::isClimbing() const {
+    return isClimbingUp() || isClimbingDown();
+}
+
+void Fireball::setClimbingState(int i) {
+    m_climbing_state = i;
+}
+
+int Fireball::getClimbingState() const {
+    return m_climbing_state;
 }
 
 void Fireball::special_death_actions() {
@@ -633,11 +634,7 @@ Barrel::Barrel(StudentWorld * sw, int x, int y, int dir) : Enemy(sw, IID_BARREL,
 
 }
 
-void Barrel::doSomething() {
-    if (isDead()) {
-        return;
-    }
-
+void Barrel::specialized_enemy_actions() {
     // if there is an empty space or a ladder below the Barrel, have the Barrel move down one
     if(canFallThere(getX(), getY() - 1) || canClimbThere(getX(), getY() - 1)) {
         moveTo(getX(), getY() - 1);
@@ -659,9 +656,8 @@ void Barrel::doSomething() {
             moveTo(getX() + dir, getY());
         }
     }
-    attack();
-
 }
+
 
 void Barrel::getAttacked(Actor * ptr) {
     // if a Burp destroyed the Barrel and not a Bonfire, it should play a sound and increase the Player's score
